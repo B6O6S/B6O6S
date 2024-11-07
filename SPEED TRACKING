@@ -1,0 +1,115 @@
+-- Get services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- Conversion factors
+local studsToMeters = 0.28
+local metersToKmPerHour = 3.6
+local smoothFactor = 0.1
+
+-- Table to store each player's last position, smoothed speed, and display labels
+local playerData = {}
+local displayMode = "screen"
+local displayEnabled = true
+
+-- Create ScreenGui for screen display
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+screenGui.Enabled = true
+
+local function createScreenLabel(player)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, 150, 0, 30)
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.BackgroundTransparency = 1
+    label.TextScaled = true
+    label.Font = Enum.Font.SourceSans
+    label.Parent = screenGui
+    return label
+end
+
+local function createBillboardDisplay(player)
+    local billboardGui = Instance.new("BillboardGui")
+    billboardGui.Size = UDim2.new(4, 0, 2, 0)
+    billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+    billboardGui.AlwaysOnTop = true
+    billboardGui.Name = "SpeedDisplay"
+
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.TextColor3 = Color3.new(1, 1, 1)
+    textLabel.TextScaled = true
+    textLabel.Font = Enum.Font.SourceSans
+    textLabel.Parent = billboardGui
+
+    billboardGui.Parent = player.Character:WaitForChild("Head")
+    return textLabel
+end
+
+local function initializePlayer(player)
+    playerData[player] = {
+        lastPosition = Vector3.new(0, 0, 0),
+        smoothSpeed = 0,
+        screenLabel = createScreenLabel(player),
+        headLabel = createBillboardDisplay(player)
+    }
+    playerData[player].screenLabel.Visible = (displayMode == "screen" and displayEnabled)
+    playerData[player].headLabel.Parent.Enabled = (displayMode == "head" and displayEnabled)
+end
+
+Players.PlayerAdded:Connect(initializePlayer)
+Players.PlayerRemoving:Connect(function(player)
+    if playerData[player] then
+        playerData[player].screenLabel:Destroy()
+        playerData[player].headLabel.Parent:Destroy()
+        playerData[player] = nil
+    end
+end)
+
+for _, player in ipairs(Players:GetPlayers()) do
+    initializePlayer(player)
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent then
+        if input.KeyCode == Enum.KeyCode.G then
+            displayMode = displayMode == "screen" and "head" or "screen"
+            for _, data in pairs(playerData) do
+                data.screenLabel.Visible = (displayMode == "screen" and displayEnabled)
+                data.headLabel.Parent.Enabled = (displayMode == "head" and displayEnabled)
+            end
+        elseif input.KeyCode == Enum.KeyCode.T then
+            displayEnabled = not displayEnabled
+            for _, data in pairs(playerData) do
+                data.screenLabel.Visible = (displayMode == "screen" and displayEnabled)
+                data.headLabel.Parent.Enabled = (displayMode == "head" and displayEnabled)
+            end
+        end
+    end
+end)
+
+RunService.RenderStepped:Connect(function(deltaTime)
+    for player, data in pairs(playerData) do
+        local character = player.Character
+        local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            local currentPosition = humanoidRootPart.Position
+            local distanceStuds = (currentPosition - data.lastPosition).magnitude
+            local currentSpeedMps = (distanceStuds * studsToMeters) / deltaTime
+            local currentSpeedKmh = currentSpeedMps * metersToKmPerHour
+            data.smoothSpeed = (data.smoothSpeed * (1 - smoothFactor)) + (currentSpeedKmh * smoothFactor)
+
+            local speedText = player.Name .. ": " .. math.floor(data.smoothSpeed) .. " km/h"
+            if displayMode == "screen" then
+                data.screenLabel.Text = speedText
+                data.screenLabel.Position = UDim2.new(0, 10, 0, 10 + (30 * (table.find(Players:GetPlayers(), player) - 1)))
+            elseif displayMode == "head" then
+                data.headLabel.Text = speedText
+            end
+
+            data.lastPosition = currentPosition
+        end
+    end
+end)
