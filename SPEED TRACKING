@@ -1,19 +1,15 @@
--- Get services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
--- Conversion factors
 local studsToMeters = 0.28
 local metersToKmPerHour = 3.6
 local smoothFactor = 0.1
 
--- Table to store each player's last position, smoothed speed, and display labels
 local playerData = {}
 local displayMode = "screen"
 local displayEnabled = true
 
--- Create ScreenGui for screen display
 local screenGui = Instance.new("ScreenGui")
 screenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 screenGui.Enabled = true
