@@ -1,0 +1,55 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local runService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+local pushDuration = 20
+local wallSize = Vector3.new(155, 155, 20)
+local pushForce = 23
+local spawnDistance = 35
+local notificationShown = false
+
+local function notifyOnce(message)
+    if not notificationShown then
+        StarterGui:SetCore("SendNotification", {
+            Title = "Dahoom:",
+            Text = message,
+            Duration = 5
+        })
+        notificationShown = true
+    end
+end
+
+local function createWall(direction)
+    notifyOnce("Hey hazza im gonna touch you ;)")
+    
+    local wall = Instance.new("Part")
+    wall.Size = wallSize
+    wall.Anchored = true
+    wall.CanCollide = true
+    wall.BrickColor = BrickColor.new("Bright red")
+    wall.Parent = workspace
+
+    local playerRight = character.PrimaryPart.CFrame.RightVector * direction
+    wall.CFrame = CFrame.new(character.PrimaryPart.Position + playerRight * spawnDistance, character.PrimaryPart.Position)
+
+    local startTime = tick()
+    local connection
+    connection = runService.Heartbeat:Connect(function()
+        if tick() - startTime < pushDuration then
+            wall.CFrame = wall.CFrame - playerRight * (pushForce * runService.Heartbeat:Wait())
+        else
+            connection:Disconnect()
+            wall:Destroy()
+
+            if direction == 1 then
+                createWall(-1)
+            else
+                createWall(1)
+            end
+        end
+    end)
+end
+
+createWall(1)
